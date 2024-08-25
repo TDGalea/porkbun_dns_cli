@@ -2,7 +2,7 @@
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Written by Thomas Galea.                                                                                                                        #
-# github.com/TDGalea/porkbun_dns_cli                                                                                                              #
+# github.com/TDGalea/pending-upload                                                                                                               #
 #                                                                                                                                                 #
 # You are free to do whatever you like with this script. I simply ask that you preserve my credit.                                                #
 #                                                                                                                                                 #
@@ -28,6 +28,7 @@ if [[ "$1" == "-h" ]] || [[ -z $1 ]]; then
 	printf "		-t : TTL (Time To Live). Defaults to 600 seconds (10 minutes) if not specified.\n"
 	printf "		-i : IP address to point the record at. If omitted, the script will pull your current public IP address automatically.\n"
 	printf "		-x : Delete the specified record. This option will NOT persist across multiple records; it must be specified for every one.\n"
+	printf "		-g : Display what the record currently points to; do not modify anything.\n"
 	printf "		-n : Specify  more records, domains, etc. for batch updating.\n"
 	printf "		-h : Print this help.\n"
 	exit 0
@@ -45,6 +46,13 @@ ip=""
 errCount=0
 changeMade=0
 
+# Take key & secret from ~/.pb_key if it exists.
+keyfile=~/.pb_key
+if [[ -f $keyfile ]]; then
+	key=$(cat $keyfile | grep pk1_)
+	sec=$(cat $keyfile | grep sk1_)
+fi
+
 # Loop until there are no arguments remaining.
 until [[ -z $@ ]];do
 	# I'm not going to allow recursive deletion. I feel like that could get accidentally destructive.
@@ -58,6 +66,7 @@ until [[ -z $@ ]];do
 			-r ) [[ ! -z $2 ]] && rec=$2 && shift || printf "'$1' has no argument!\n";;
 			-t ) [[ ! -z $2 ]] && ttl=$2 && shift || printf "'$1' has no argument!\n";;
 			-i ) [[ ! -z $2 ]] && ip=$2  && shift || printf "'$1' has no argument!\n";;
+			-g ) view=1;;
 			-x ) del=1;;
 			-egg ) printf "¯\\_(ツ)_/¯\n" && shift;;
 			 * ) printf "Unrecognised argument '$1'\n" && shift;;
@@ -88,23 +97,25 @@ until [[ -z $@ ]];do
 	if [[ "$pbip" == "" ]]; then
 		# If we were asked to delete, there's nothing to do. Otherwise, we need to create the record rather than update.
 		if [[ $del == 1 ]]; then
-			printf "Record '$prec' doesn't exist for domain '$dom'. Nothing to delete.\n"
+			printf "Record '$rec' doesn't exist for domain '$dom'. Nothing to delete.\n"
 		else
-			printf "Creating record '$prec' of domain '$dom': "
+			printf "Creating record '$rec' of domain '$dom': "
 			response=`curl --header "Content-type: application/json" --request POST --data "{\"secretapikey\":\"$sec\",\"apikey\":\"$key\",\"name\":\"$prec\",\"type\":\"A\",\"content\":\"$ip\",\"ttl\":\"$ttl\"}" $api/create/$dom 2>/dev/null`
 			[[ ! "$(printf $response | grep SUCCESS)" == "" ]] && printf "Success.\n" || printf "Failed. JSON response was:\n	$response\n" || let errCount+=1
 		fi
 	else
-		if [[ $del == 1 ]]; then
-			printf "Deleting record '$prec' of domain '$dom': "
+		if [[ $view == 1 ]]; then
+			printf "Record '$rec' of '$dom' currently points to: $pbip\n"
+		elif [[ $del == 1 ]]; then
+			printf "Deleting record '$rec' of domain '$dom': "
 			response=`curl --header "Content-type: application/json" --request POST --data "{\"secretapikey\":\"$sec\",\"apikey\":\"$key\"}" $api/deleteByNameType/$dom/A/$prec 2>/dev/null`
 			[[ ! "$(printf $response | grep SUCCESS)" == "" ]] && printf "Success.\n" || printf "FAiled. JSON response was:\n	$response\n" || let errCount+=1
 		else
 			# Only bother updating if the IPs are actually different.
 			if [[ "$pbip" = "$ip" ]]; then
-				printf "Record '$prec' of domain '$dom' is already up to date.\n"
+				printf "Record '$rec' of domain '$dom' is already up to date.\n"
 			else
-				printf "Updating record '$prec' of domain '$dom': "
+				printf "Updating record '$rec' of domain '$dom': "
 				response=`curl --header "Content-type: application/json" --request POST --data "{\"secretapikey\":\"$sec\",\"apikey\":\"$key\",\"content\":\"$ip\",\"ttl\":\"$ttl\"}" https://porkbun.com/api/json/v3/dns/editByNameType/$dom/A/$prec 2>/dev/null`
 				[[ ! "$(printf $response | grep SUCCESS)" == "" ]] && printf "Success.\n" || printf "Failed. JSON response was:\n	$response\n" || let errCount+=1
 			fi
