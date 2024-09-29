@@ -2,7 +2,7 @@
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Written by Thomas Galea.                                                                                                                        #
-# github.com/TDGalea/pending-upload                                                                                                               #
+# https://github.com/TDGalea/porkbun_dns_cli                                                                                                      #
 #                                                                                                                                                 #
 # You are free to do whatever you like with this script. I simply ask that you preserve my credit.                                                #
 #                                                                                                                                                 #
